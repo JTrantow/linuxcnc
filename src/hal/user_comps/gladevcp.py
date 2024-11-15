@@ -49,13 +49,7 @@ import signal
 #   We have do do this before importing other modules because on import
 #   they set up their own loggers as children of the base logger.
 from qtvcp import logger
-LOG = logger.initBaseLogger('GladeVCP', log_file=None, log_level=logger.INFO)
-
-import gladevcp.makepins
-from gladevcp.gladebuilder import GladeBuilder
-from gladevcp import xembed
-from gladevcp.core import Status
-GSTAT = Status()
+LOG = None
 
 options = [ Option( '-c', dest='component', metavar='NAME'
                   , help="Set component name to NAME. Default is basename of UI file")
@@ -66,7 +60,11 @@ Values are in pixel units, XOFFSET/YOFFSET is referenced from top left of screen
 use -g WIDTHxHEIGHT for just setting size or -g +XOFFSET+YOFFSET for just position""")
           , Option( '-H', dest='halfile', metavar='FILE'
                   , help="execute hal statements from FILE with halcmd after the component is set up and ready")
+          , Option( '-i', action='store_true', dest='info', default=False
+                  , help="Enable info output")
           , Option( '-m', dest='maximum', default=False, help="Force panel window to maxumize")
+          , Option( '-q', action='store_true', dest='quiet', default=False
+                  , help="Enable only error debug output")
           , Option( '-r', dest='gtk_rc', default="",
                     help="read custom GTK rc file to set widget style")
           , Option( '-t', dest='theme', default="", help="Set gtk theme. Default is system theme")
@@ -78,8 +76,12 @@ use -g WIDTHxHEIGHT for just setting size or -g +XOFFSET+YOFFSET for just positi
                   , help='Use FILEs as additional user defined modules with handlers')
           , Option( '-U', dest='useropts', action='append', metavar='USEROPT', default=[]
                   , help='pass USEROPTs to Python modules')
+          , Option( '-v', action='store_true', dest='verbose', default=False
+                  , help="Enable verbose debug output")
           , Option( '--always_above', action='store_true', dest='always_above_flag'
                   , help="Request the window To always be above other windows")
+          , Option( '--ini', dest='ini_path', default=""
+                  , help="ini path")
           ]
 
 signal_func = 'on_unix_signal'
@@ -184,10 +186,37 @@ def main():
         parser.print_help()
         sys.exit(1)
 
+    temp = os.path.splitext(os.path.basename(args[0]))[0]
+    global LOG
+    LOG = logger.initBaseLogger('GladeVCP-'+ temp, log_file=None, log_level=logger.INFO)
+
     gladevcp_debug = debug = opts.debug
     if opts.debug:
         # Log level defaults to INFO, so set lower if in debug mode
         logger.setGlobalLevel(logger.DEBUG)
+        LOG.debug('DEBUGGING logging on')
+    elif opts.info:
+        logger.setGlobalLevel(logger.INFO)
+        print('INFO logging on')
+    elif opts.quiet:
+        logger.setGlobalLevel(logger.ERROR)
+    elif opts.verbose:
+        logger.setGlobalLevel(logger.VERBOSE)
+        print('VERBOSE logging on')
+    else:
+        logger.setGlobalLevel(logger.WARNING)
+
+    from gladevcp.core import Info, Status
+    import gladevcp.makepins
+    from gladevcp.gladebuilder import GladeBuilder
+    from gladevcp import xembed
+
+    if opts.ini_path:
+        # set INI path for INI info class before widgets are loaded
+        INFO = Info(ini=opts.ini_path)
+    else:
+        INFO = Info()
+    LOG.verbose('INI path = {}'.format(opts.ini_path))
 
     xmlname = args[0]
 
@@ -318,6 +347,7 @@ def main():
 
     # User components are set up so report that we are ready
     halcomp.ready()
+    GSTAT = Status()
     GSTAT.forced_update()
 
     # push the XWindow id number to standard out

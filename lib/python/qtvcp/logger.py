@@ -39,7 +39,7 @@ def verbose(self, message, *args, **kws):
 
 # add the custom log level to the library (class patch)
 logging.Logger.verbose = verbose
-
+logging.Logger.VERBOSE = VERBOSE
 # Our custom colorizing formatter for the terminal handler
 from .lib.colored_formatter import ColoredFormatter
 
@@ -95,15 +95,15 @@ def initBaseLogger(name, log_file=None, log_level=DEBUG):
     base_log.addHandler(ch)
 
     # Add file handler
-    fh = logging.FileHandler(log_file)
-    fh.setLevel(logging.DEBUG)
-    ff = logging.Formatter(FILE_FORMAT)
-    fh.setFormatter(ff)
-    base_log.addHandler(fh)
+    #fh = logging.FileHandler(log_file)
+    #fh.setLevel(logging.DEBUG)
+    #ff = logging.Formatter(FILE_FORMAT)
+    #fh.setFormatter(ff)
+    #base_log.addHandler(fh)
 
     # Get logger for logger
     log = getLogger(__name__)
-    base_log.info('Logging to: yellow<{}>'.format(log_file))
+    #base_log.info('Logging to: yellow<{}>'.format(log_file))
 
     return base_log
 

@@ -76,7 +76,7 @@ sys.excepthook = excepthook
 
 # constants
 #         # gmoccapy  #"
-_RELEASE = " 3.4.7.1"
+_RELEASE = " 3.4.8"
 _INCH = 0                         # imperial units are active
 _MM = 1                           # metric units are active
 
@@ -167,6 +167,9 @@ class gmoccapy(object):
         # initial poll, so all is up to date
         self.stat.poll()
         self.error_channel.poll()
+
+        # set INI path for INI info class before widgets are loaded
+        INFO = Info(ini=argv[2])
 
         self.builder = Gtk.Builder()
         # translation of the glade file will be done with
@@ -347,6 +350,11 @@ class gmoccapy(object):
         self._show_tooledit_tab(False)
         self._show_iconview_tab(False)
 
+        # those two containers are disabled by default to allow fullscreen 
+        # with smaller display resolutions
+        self.widgets["hbx_upper"].show()
+        self.widgets["ntb_button"].show()
+
         # the velocity settings
         self.widgets.adj_spindle_bar_min.set_value(self.min_spindle_rev)
         self.widgets.adj_spindle_bar_max.set_value(self.max_spindle_rev)
@@ -386,8 +394,9 @@ class gmoccapy(object):
 
         self.widgets.tbtn_view_tool_path.set_active(self.prefs.getpref("view_tool_path", True, bool))
         self.widgets.tbtn_view_dimension.set_active(self.prefs.getpref("view_dimension", True, bool))
-        view = view = self.prefs.getpref("view", "p", str)
+        view = self.prefs.getpref("view", "p", str)
         self.widgets["rbt_view_{0}".format(view)].set_active(True)
+        self.widgets.gremlin.set_property("view", view)
 
         # get if run from line should be used
         rfl = self.prefs.getpref("run_from_line", "no_run", str)
@@ -420,7 +429,7 @@ class gmoccapy(object):
         # check the highlighting type
         # the following would load the python language
         # self.widgets.gcode_view.set_language("python")
-        LANGDIR = os.path.join(BASE, "share", "Gtksourceview-2.0", "language-specs")
+        LANGDIR = os.path.join(BASE, "share", "Gtksourceview-4", "language-specs")
         file_path = os.path.join(LANGDIR, "gcode.lang")
         if os.path.isfile(file_path):
             LOG.info("Gcode.lang found")
@@ -795,7 +804,7 @@ class gmoccapy(object):
             btn.add(image)
         except Exception as e:
             LOG.error(e)
-            message = _("could not resolv the image path '{0}' given for button '{1}'".format(filepath, name))
+            message = _("could not resolve the image path '{0}' given for button '{1}'".format(filepath, name))
             LOG.error(message)
             image.set_from_icon_name("image-missing", Gtk.IconSize.DIALOG)
             btn.add(image)
@@ -1071,7 +1080,7 @@ class gmoccapy(object):
         xpos, ypos, zpos, maxprobe = self.get_ini_info.get_tool_sensor_data()
         if not xpos or not ypos or not zpos or not maxprobe:
             self.widgets.lbl_tool_measurement.show()
-            LOG.info(_("No valid probe config in INI File. Tool measurement disabled."))
+            LOG.info(_("No valid probe config in INI file. Tool measurement disabled."))
             self.widgets.chk_use_tool_measurement.set_active(False)
             self.widgets.chk_use_tool_measurement.set_sensitive(False)
             return False
@@ -1099,7 +1108,7 @@ class gmoccapy(object):
 
         # We get the increments from INI File
         if len(self.jog_increments) > 10:
-            LOG.warning(_("To many increments given in INI File for this screen. "
+            LOG.warning(_("To many increments given in INI file for this screen. "
             "Only the first 10 will be reachable through this screen."))
             # we shorten the increment list to 10 (first is default = 0)
             self.jog_increments = self.jog_increments[0:11]
@@ -1297,8 +1306,7 @@ class gmoccapy(object):
         LOG.debug("found {0} Macros".format(num_macros))
 
         if num_macros > 16:
-            message = _("GMOCCAPY INFO\n")
-            message += _("found more than 16 macros, will use only the first 16")
+            message = _("Found more than 16 macros, will use only the first 16.")
             LOG.info(message)
 
             num_macros = 16
@@ -1807,7 +1815,7 @@ class gmoccapy(object):
     def _dynamic_tab(self, widget, text):
         s = Gtk.Socket()
         try:
-            widget.append_page(s, Gtk.Label(" " + text + " "))
+            widget.append_page(s, Gtk.Label.new(" " + text + " "))
         except:
             try:
                 widget.pack_end(s, True, True, 0)
@@ -2430,11 +2438,8 @@ class gmoccapy(object):
                 self._on_play_sound(None, "alert")
 
     def on_gremlin_gcode_error(self, widget, errortext):
-        if self.gcodeerror == errortext:
-            return
-        else:
-            self.gcodeerror = errortext
-            self.dialogs.warning_dialog(self, _("Important Warning"), errortext)
+        self.gcodeerror = errortext
+        self.dialogs.warning_dialog(self, _("Important Warning"), errortext)
 
 
 # =========================================================
@@ -2740,7 +2745,7 @@ class gmoccapy(object):
         self.last_key_event = None, 0
 
     def on_hal_status_mode_mdi(self, widget):
-        LOG.debug("MDI Mode {0}".format(self.tool_change))
+        LOG.debug("MDI Mode, tool_change = {0}".format(self.tool_change))
 
         # if the edit offsets button is active, we do not want to change
         # pages, as the user may want to edit several axis values
@@ -4564,7 +4569,7 @@ class gmoccapy(object):
             for widget_name, icon_name, size in icon_configs:
                 try:
                     image = self.widgets[widget_name]
-                    # TODO: Thats kind a problem, as not every image has (yet) a parent (e.g. for toggle button only one
+                    # TODO: That's kind a problem, as not every image has (yet) a parent (e.g. for toggle button only one
                     #  image is assigned at a time) and the default_style is maybe to inaccurate in terms of overridden
                     #  style attributes used by the icon loading mechanism (fg, succcss, warning and error colors)
                     # style = image.get_parent().get_style_context() if image.get_parent() else default_style
@@ -4587,10 +4592,12 @@ class gmoccapy(object):
 
     def _set_sourceview_theme(self, name):
         self.widgets["gcode_view"].set_style_scheme(name)
-        style  = self.widgets["gcode_view"].get_style_context()
-        color = style.get_background_color(Gtk.StateFlags.SELECTED)
-        color.alpha = 0.5
-        self.widgets["gcode_view"].add_mark_category('motion', color.to_string())
+        buffer = self.widgets["gcode_view"].get_buffer()
+        style = buffer.get_style_scheme().get_style('current-line')
+        color = style.props.background
+        rgba = Gdk.RGBA()
+        rgba.parse(color)
+        self.widgets["gcode_view"].add_mark_category('motion', rgba.to_string())
         
     def on_sourceview_theme_choice_changed(self, widget):
         active = widget.get_active_iter()
@@ -5625,7 +5632,7 @@ class gmoccapy(object):
         elif location == "right":
             container = self.widgets.vbtb_main
         else:
-            LOG.debug("got wrong location to locate the childs")
+            LOG.debug("got wrong location to locate the children")
 
         children = container.get_children()
         hidden = 0
@@ -5828,8 +5835,10 @@ if __name__ == "__main__":
 
     # Some of these libraries log when imported so logging level must already be set.
     import gladevcp.makepins
+    from gladevcp.core import Info
     from gladevcp.combi_dro import Combi_DRO  # we will need it to make the DRO
     from gmoccapy import widgets       # a class to handle the widgets
+
     from gmoccapy import notification  # this is the module we use for our error handling
     from gmoccapy import preferences   # this handles the preferences
     from gmoccapy import getiniinfo    # this handles the INI File reading so checking is done in that module
@@ -5859,7 +5868,20 @@ if __name__ == "__main__":
                 res = os.spawnvp(os.P_WAIT, "haltcl", ["haltcl", "-i", inifile, f])
             else:
                 res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd", "-i", inifile, "-f", f])
-            if res: raise SystemExit(res)
+                if res:
+                    LOG.error('postgui halfile error:{}'.format(res))
+                    raise SystemExit(res)
+
+        postgui_halcmds = app.get_ini_info.get_postgui_halcmds()
+        LOG.info("Postgui commands: yellow<{}>".format(postgui_halcmds))
+        if postgui_halcmds is not None:
+            for f in postgui_halcmds:
+                f = os.path.expanduser(f)
+                res = os.spawnvp(os.P_WAIT, "halcmd", ["halcmd"] + f.split())
+                if res:
+                    LOG.error('postgui command error:{}'.format(res))
+                    raise SystemExit(res)
+
 
     # start the event loop
     Gtk.main()

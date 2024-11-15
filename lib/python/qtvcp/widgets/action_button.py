@@ -42,7 +42,7 @@ LOG = logger.getLogger(__name__)
 # Force the log level for this module
 # LOG.setLevel(logger.INFO) # One of DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-class ActionButton(IndicatedPushButton, _HalWidgetBase):
+class ActionButton(IndicatedPushButton):
     def __init__(self, parent=None):
         super(ActionButton, self).__init__(parent)
         self._block_signal = False
@@ -521,6 +521,7 @@ class ActionButton(IndicatedPushButton, _HalWidgetBase):
                 except IndexError:
                     LOG.error("can't zero origin for specified joint {}".format(self.joint))
             ACTION.SET_AXIS_ORIGIN(axis, 0)
+            STATUS.emit('update-machine-log', 'Zeroed Axis %s' % axis, 'TIME')
         elif self.zero_g5x:
             ACTION.ZERO_G5X_OFFSET(0)
         elif self.zero_g92:
@@ -583,6 +584,13 @@ class ActionButton(IndicatedPushButton, _HalWidgetBase):
         elif self.view_change:
             if self.view_type =='reload':
                  STATUS.emit('reload-display')
+            elif self.view_type in('mouse-button-mode', 'pan-lock-mode',
+                            'zoom-lock-mode', 'rotate-lock-mode'):
+                    if state:
+                        ACTION.SET_GRAPHICS_SCROLL_MODE(('mouse-button-mode',
+                        'pan-lock-mode', 'rotate-lock-mode', 'zoom-lock-mode').index(self.view_type))
+                    else:
+                        ACTION.SET_GRAPHICS_SCROLL_MODE(0)
             else:
                 try:
                     ACTION.SET_GRAPHICS_VIEW(self.view_type)
@@ -1463,7 +1471,8 @@ class ActionButton(IndicatedPushButton, _HalWidgetBase):
         if not data.lower() in('x', 'y', 'y2', 'z', 'z2', 'p', 'clear',
                     'zoom-in','zoom-out','pan-up','pan-down',
                     'pan-left','pan-right','rotate-up','rotate-down',
-                    'rotate-cw','rotate-ccw','reload'):
+                    'rotate-cw','rotate-ccw','reload','zoom-lock-mode',
+                    'pan-lock-mode','rotate-lock-mode','scroll-mode'):
             data = 'p'
         self.view_type = data
     def get_view_type(self):
